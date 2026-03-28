@@ -28,11 +28,11 @@ Add the plugin to your [OpenCode config](https://opencode.ai/docs/config/):
 ```json
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugin": ["opm"]
+  "plugin": ["@json9512/opm"]
 }
 ```
 
-> **Important:** `opm` must be the **first** entry in the `plugin` array. This ensures it intercepts `/plugin` commands before other plugins (e.g. `oh-my-opencode`) can handle them.
+> **Important:** `@json9512/opm` must be the **first** entry in the `plugin` array. This ensures it intercepts `/plugin` commands before other plugins (e.g. `oh-my-opencode`) can handle them.
 
 OpenCode will automatically install the plugin on next run.
 
