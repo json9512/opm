@@ -1,4 +1,5 @@
 import type { Plugin } from "@opencode-ai/plugin";
+// Command is registered via ~/.config/opencode/command/opm.md
 import { readFileSync, writeFileSync, existsSync } from "fs";
 import { homedir } from "os";
 import { join } from "path";
@@ -249,14 +250,6 @@ function actionAlias(args: string[]): string {
 
 const OpmPlugin: Plugin = async () => {
   return {
-    config: async (input) => {
-      if (!input.command) input.command = {};
-      input.command["opm"] = {
-        description: "Manage plugins — list | enable | disable | alias | help",
-        template: "opm $ARGUMENTS",
-      };
-    },
-
     "command.execute.before": async (input, output) => {
       if (input.command !== "opm") return;
 
@@ -289,8 +282,11 @@ const OpmPlugin: Plugin = async () => {
           result = help();
       }
 
-      // Set output.parts to display the result without invoking the LLM
+      // Display result without invoking the LLM
       output.parts.push({ type: "text", text: result } as any);
+
+      // Stop the hook chain — prevents oh-my-opencode from also handling this
+      throw new Error("Command handled by @json9512/opm");
     },
   };
 };
