@@ -1,0 +1,20 @@
+{
+  "name": "opm",
+  "version": "1.0.0",
+  "description": "Manage opencode plugins at runtime with /plugin enable|disable|list|alias|help",
+  "type": "module",
+  "main": ".opencode/plugin/index.ts",
+  "keywords": ["opencode", "plugin"],
+  "license": "MIT",
+  "scripts": {
+    "test": "bun test"
+  },
+  "devDependencies": {
+    "@opencode-ai/plugin": "latest",
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "engines": { "bun": ">=1.0.0" }
+}
