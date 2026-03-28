@@ -90,17 +90,25 @@ Changes take effect after restarting OpenCode.
 
 ### Hook implementation
 
-The plugin registers itself using the `config` hook (no `.md` file needed) and intercepts commands via `command.execute.before`. It throws after sending its response to stop the hook chain — preventing downstream plugins from also processing the `/opm` command.
+The plugin registers the `/opm` command via the `config` hook and intercepts it via `command.execute.before`. It calls `client.session.prompt({ noReply: true })` to display the result directly in chat, then throws to stop the hook chain — preventing downstream plugins from re-processing the command.
 
 ```typescript
-const OpmPlugin: Plugin = async () => ({
+const OpmPlugin: Plugin = async ({ client }) => ({
   config: async (input) => {
-    input.command["opm"] = { ... };
+    if (!input.command) input.command = {};
+    input.command["opm"] = {
+      description: "Manage plugins — list | enable | disable | alias | help",
+      template: "Run /opm with arguments: $ARGUMENTS",
+    };
   },
-  "command.execute.before": async (input, output) => {
+  "command.execute.before": async (input) => {
     if (input.command !== "opm") return;
     // ... handle command ...
-    output.parts.push({ type: "text", text: result } as any);
+    await client.session.prompt({
+      path: { id: input.sessionID },
+      body: { noReply: true, parts: [{ type: "text", text: result }] },
+    });
+    throw new Error("Command handled by @json9512/opm");
   },
 });
 ```

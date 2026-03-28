@@ -1,6 +1,6 @@
 {
   "name": "@json9512/opm",
-  "version": "1.0.2",
+  "version": "1.0.4",
   "description": "Manage opencode plugins at runtime with /opm enable|disable|list|alias|help",
   "type": "module",
   "main": ".opencode/plugin/index.ts",
