@@ -1,4 +1,4 @@
-# opencode-plugin-manager
+# opm
 
 A plugin for [OpenCode](https://opencode.ai) that lets you manage other plugins at runtime — enable, disable, alias, and inspect them — without ever leaving the chat.
 
@@ -28,11 +28,11 @@ Add the plugin to your [OpenCode config](https://opencode.ai/docs/config/):
 ```json
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugin": ["opencode-plugin-manager"]
+  "plugin": ["@json9512/opm"]
 }
 ```
 
-> **Important:** `opencode-plugin-manager` must be the **first** entry in the `plugin` array. This ensures it intercepts `/opm` commands before other plugins (e.g. `oh-my-opencode`) can handle them.
+> **Important:** `@json9512/opm` must be the **first** entry in the `plugin` array. This ensures it intercepts `/opm` commands before other plugins (e.g. `oh-my-opencode`) can handle them.
 
 OpenCode will automatically install the plugin on next run.
 
@@ -107,7 +107,7 @@ const OpmPlugin: Plugin = async ({ client }) => ({
     if (input.command !== "opm") return;
     // ... handle command ...
     await client.session.prompt({ path: { id: input.sessionID }, body: { noReply: true, ... } });
-    throw new Error("Command handled by opencode-plugin-manager");
+    throw new Error("Command handled by @json9512/opm");
   },
 });
 ```

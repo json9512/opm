@@ -336,7 +336,7 @@ const OpmPlugin: Plugin = async ({ client }) => {
       });
 
       // Stop the hook chain — prevents oh-my-opencode or LLM from also handling this
-      throw new Error("Command handled by opencode-plugin-manager");
+      throw new Error("Command handled by @json9512/opm");
     },
   };
 };
