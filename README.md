@@ -18,7 +18,7 @@ This plugin replaces all of that with a single slash command. It also persists d
 - **Disable**: Remove a plugin from the active config without losing its name
 - **Enable**: Restore a disabled plugin back into the config
 - **Aliases**: Create short nicknames for long plugin names (e.g. `omo` → `oh-my-opencode`)
-- **Fuzzy matching**: `vibeguard` matches `opencode-vibeguard` — no need for exact names
+- **Exact matching**: plugin names must match exactly as they appear in your config — use `/opm list` to check
 - **No LLM involvement**: Commands are intercepted before the model is called; results appear instantly
 
 ## Setup
@@ -47,16 +47,9 @@ OpenCode will automatically install the plugin on next run.
 | `/opm alias remove <shorthand>` | Remove a saved alias |
 | `/opm help` | Show usage information |
 
-### Fuzzy names
+### Plugin names
 
-All commands that accept a plugin name support fuzzy matching:
-
-- `vibeguard` matches `opencode-vibeguard`
-- `browser` matches `@different-ai/opencode-browser`
-- `mem` matches `opencode-mem@latest`
-- `omo` matches `oh-my-opencode` (if you've set up that alias)
-
-Exact matches take priority over substring matches.
+Plugin names must match exactly as they appear in your `opencode.json`. Run `/opm list` to see the exact names. Use aliases to avoid typing long names repeatedly.
 
 ### Aliases
 
