@@ -1,4 +1,5 @@
 node_modules/
+bun.lock
 jspm_packages/
 *.tsbuildinfo
 .npm
