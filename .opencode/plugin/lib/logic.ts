@@ -121,6 +121,8 @@ export type AliasResult = {
 export function computeAlias(
   args: string[],
   aliases: Record<string, string>,
+  enabled: string[],
+  disabled: string[],
 ): AliasResult {
   if (args.length === 0) {
     return { message: "Usage: /plugin alias <shorthand> <name>  or  /plugin alias remove <shorthand>" };
@@ -139,6 +141,12 @@ export function computeAlias(
   if (!target) {
     return { message: "Usage: /plugin alias <shorthand> <plugin-name>  or  /plugin alias remove <shorthand>" };
   }
+
+  const allPlugins = [...enabled, ...disabled];
+  if (!allPlugins.includes(target)) {
+    return { message: `Plugin '${target}' not found.\nRun /opm list to see exact plugin names.` };
+  }
+
   return {
     message: `Alias '${shorthand}' → '${target}' saved.`,
     newAliases: { ...aliases, [shorthand]: target },

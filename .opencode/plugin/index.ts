@@ -80,7 +80,8 @@ function actionEnable(name: string): string {
 }
 
 function actionAlias(args: string[]): string {
-  const result = computeAlias(args, readAliases());
+  const config = readConfig();
+  const result = computeAlias(args, readAliases(), config.plugin ?? [], readDisabled());
   if (result.newAliases !== undefined) {
     writeAliases(result.newAliases);
   }

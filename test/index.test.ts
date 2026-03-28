@@ -189,50 +189,71 @@ describe("computeEnable", () => {
 
 describe("computeAlias", () => {
   const aliases = { omo: "oh-my-opencode" };
+  const enabled = ["oh-my-opencode", "opencode-mem"];
+  const disabled = ["opencode-vibeguard"];
 
   it("creates a new alias", () => {
-    const r = computeAlias(["vg", "opencode-vibeguard"], aliases);
+    const r = computeAlias(["vg", "opencode-vibeguard"], aliases, enabled, disabled);
     expect(r.newAliases).toEqual({ omo: "oh-my-opencode", vg: "opencode-vibeguard" });
     expect(r.message).toContain("saved");
   });
 
   it("updates an existing alias", () => {
-    const r = computeAlias(["omo", "oh-my-opencode-v2"], aliases);
-    expect(r.newAliases!["omo"]).toBe("oh-my-opencode-v2");
+    const r = computeAlias(["omo", "oh-my-opencode"], aliases, enabled, disabled);
+    expect(r.newAliases!["omo"]).toBe("oh-my-opencode");
   });
 
   it("handles scoped package names correctly", () => {
-    const r = computeAlias(["br", "@different-ai/opencode-browser"], {});
+    const r = computeAlias(["br", "@different-ai/opencode-browser"], {}, [], ["@different-ai/opencode-browser"]);
     expect(r.newAliases!["br"]).toBe("@different-ai/opencode-browser");
   });
 
   it("removes an existing alias", () => {
-    const r = computeAlias(["remove", "omo"], aliases);
+    const r = computeAlias(["remove", "omo"], aliases, enabled, disabled);
     expect(r.newAliases).toEqual({});
     expect(r.message).toContain("Removed");
   });
 
   it("returns error when removing a missing alias", () => {
-    const r = computeAlias(["remove", "nonexistent"], aliases);
+    const r = computeAlias(["remove", "nonexistent"], aliases, enabled, disabled);
     expect(r.message).toContain("not found");
     expect(r.newAliases).toBeUndefined();
   });
 
   it("returns error when remove has no argument", () => {
-    const r = computeAlias(["remove"], aliases);
+    const r = computeAlias(["remove"], aliases, enabled, disabled);
     expect(r.message).toContain("Error");
   });
 
   it("returns usage when called with no args", () => {
-    const r = computeAlias([], aliases);
+    const r = computeAlias([], aliases, enabled, disabled);
     expect(r.message).toContain("Usage:");
     expect(r.newAliases).toBeUndefined();
   });
 
   it("returns usage when only shorthand is provided (no target)", () => {
-    const r = computeAlias(["vg"], aliases);
+    const r = computeAlias(["vg"], aliases, enabled, disabled);
     expect(r.message).toContain("Usage:");
     expect(r.newAliases).toBeUndefined();
+  });
+
+  it("returns error when target plugin does not exist", () => {
+    const r = computeAlias(["x", "nonexistent-plugin"], aliases, enabled, disabled);
+    expect(r.message).toContain("not found");
+    expect(r.message).toContain("/opm list");
+    expect(r.newAliases).toBeUndefined();
+  });
+
+  it("accepts a target that is in the enabled list", () => {
+    const r = computeAlias(["mem", "opencode-mem"], aliases, enabled, disabled);
+    expect(r.newAliases!["mem"]).toBe("opencode-mem");
+    expect(r.message).toContain("saved");
+  });
+
+  it("accepts a target that is in the disabled list", () => {
+    const r = computeAlias(["vg", "opencode-vibeguard"], aliases, enabled, disabled);
+    expect(r.newAliases!["vg"]).toBe("opencode-vibeguard");
+    expect(r.message).toContain("saved");
   });
 });
 
