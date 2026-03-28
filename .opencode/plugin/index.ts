@@ -247,7 +247,7 @@ function actionAlias(args: string[]): string {
 
 // ── Plugin ────────────────────────────────────────────────────────────────────
 
-const OpmPlugin: Plugin = async ({ client }) => {
+const OpmPlugin: Plugin = async () => {
   return {
     config: async (input) => {
       if (!input.command) input.command = {};
@@ -257,7 +257,7 @@ const OpmPlugin: Plugin = async ({ client }) => {
       };
     },
 
-    "command.execute.before": async (input) => {
+    "command.execute.before": async (input, output) => {
       if (input.command !== "opm") return;
 
       const args = (input.arguments ?? "").trim().split(/\s+/).filter(Boolean);
@@ -289,16 +289,8 @@ const OpmPlugin: Plugin = async ({ client }) => {
           result = help();
       }
 
-      await client.session.prompt({
-        path: { id: input.sessionID },
-        body: {
-          noReply: true,
-          parts: [{ type: "text", text: result }],
-        },
-      });
-
-      // Stop the hook chain — prevents oh-my-opencode or LLM from also handling this
-      throw new Error("Command handled by @json9512/opm");
+      // Set output.parts to display the result without invoking the LLM
+      output.parts.push({ type: "text", text: result } as any);
     },
   };
 };

@@ -59,8 +59,9 @@ Aliases are persistent shortcuts stored in `~/.config/opencode/plugins-aliases.j
 /opm alias omo oh-my-opencode
 /opm alias vg opencode-vibeguard
 
-/opm disable omo   → disables oh-my-opencode
-/opm enable vg     → enables opencode-vibeguard
+/opm disable omo              → disables oh-my-opencode
+/opm enable vg                → enables opencode-vibeguard
+/opm disable oh-my-opencode   → also works with exact names
 ```
 
 ## How it works
@@ -92,15 +93,14 @@ Changes take effect after restarting OpenCode.
 The plugin registers itself using the `config` hook (no `.md` file needed) and intercepts commands via `command.execute.before`. It throws after sending its response to stop the hook chain — preventing downstream plugins from also processing the `/opm` command.
 
 ```typescript
-const OpmPlugin: Plugin = async ({ client }) => ({
+const OpmPlugin: Plugin = async () => ({
   config: async (input) => {
     input.command["opm"] = { ... };
   },
-  "command.execute.before": async (input) => {
+  "command.execute.before": async (input, output) => {
     if (input.command !== "opm") return;
     // ... handle command ...
-    await client.session.prompt({ path: { id: input.sessionID }, body: { noReply: true, ... } });
-    throw new Error("Command handled by @json9512/opm");
+    output.parts.push({ type: "text", text: result } as any);
   },
 });
 ```
