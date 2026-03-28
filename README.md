@@ -34,7 +34,7 @@ Add the plugin to your [OpenCode config](https://opencode.ai/docs/config/):
 
 > **Important:** `@json9512/opm` must be the **first** entry in the `plugin` array. This ensures it intercepts `/opm` commands before other plugins (e.g. `oh-my-opencode`) can handle them.
 
-OpenCode will automatically install the plugin on next run.
+OpenCode will automatically install the plugin on next run. Because plugins are loaded at startup, **you need to restart OpenCode twice after a clean install** — once for the install to complete, and again for the `/opm` command to become available.
 
 ## Slash Commands
 
