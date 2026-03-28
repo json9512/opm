@@ -125,12 +125,12 @@ export function computeAlias(
   disabled: string[],
 ): AliasResult {
   if (args.length === 0) {
-    return { message: "Usage: /plugin alias <shorthand> <name>  or  /plugin alias remove <shorthand>" };
+    return { message: "Usage: /opm alias <shorthand> <name>  or  /opm alias remove <shorthand>" };
   }
 
   if (args[0] === "remove") {
     const shorthand = args[1];
-    if (!shorthand) return { message: "Error: /plugin alias remove requires a shorthand name." };
+    if (!shorthand) return { message: "Error: /opm alias remove requires a shorthand name." };
     if (!(shorthand in aliases)) return { message: `Alias '${shorthand}' not found.` };
     const { [shorthand]: _removed, ...rest } = aliases;
     return { message: `Removed alias '${shorthand}'.`, newAliases: rest };
@@ -139,7 +139,7 @@ export function computeAlias(
   const [shorthand, ...nameParts] = args;
   const target = nameParts.join(" ");
   if (!target) {
-    return { message: "Usage: /plugin alias <shorthand> <plugin-name>  or  /plugin alias remove <shorthand>" };
+    return { message: "Usage: /opm alias <shorthand> <plugin-name>  or  /opm alias remove <shorthand>" };
   }
 
   const allPlugins = [...enabled, ...disabled];
