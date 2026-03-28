@@ -341,11 +341,11 @@ describe("computeAlias", () => {
 describe("help", () => {
   it("includes all subcommands", () => {
     const h = help();
-    expect(h).toContain("/plugin list");
-    expect(h).toContain("/plugin enable");
-    expect(h).toContain("/plugin disable");
-    expect(h).toContain("/plugin alias");
-    expect(h).toContain("/plugin help");
+    expect(h).toContain("/opm list");
+    expect(h).toContain("/opm enable");
+    expect(h).toContain("/opm disable");
+    expect(h).toContain("/opm alias");
+    expect(h).toContain("/opm help");
   });
 
   it("mentions fuzzy matching", () => {

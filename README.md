@@ -1,4 +1,4 @@
-# opm
+# opencode-plugin-manager
 
 A plugin for [OpenCode](https://opencode.ai) that lets you manage other plugins at runtime — enable, disable, alias, and inspect them — without ever leaving the chat.
 
@@ -28,11 +28,11 @@ Add the plugin to your [OpenCode config](https://opencode.ai/docs/config/):
 ```json
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugin": ["@json9512/opm"]
+  "plugin": ["opencode-plugin-manager"]
 }
 ```
 
-> **Important:** `@json9512/opm` must be the **first** entry in the `plugin` array. This ensures it intercepts `/plugin` commands before other plugins (e.g. `oh-my-opencode`) can handle them.
+> **Important:** `opencode-plugin-manager` must be the **first** entry in the `plugin` array. This ensures it intercepts `/opm` commands before other plugins (e.g. `oh-my-opencode`) can handle them.
 
 OpenCode will automatically install the plugin on next run.
 
@@ -40,12 +40,12 @@ OpenCode will automatically install the plugin on next run.
 
 | Command | Description |
 |---------|-------------|
-| `/plugin list` | Show all enabled and disabled plugins, plus any saved aliases |
-| `/plugin enable <name>` | Move a plugin from the disabled list back into the config |
-| `/plugin disable <name>` | Remove a plugin from the config and save it to the disabled list |
-| `/plugin alias <shorthand> <name>` | Create (or update) a shorthand alias for a plugin name |
-| `/plugin alias remove <shorthand>` | Remove a saved alias |
-| `/plugin help` | Show usage information |
+| `/opm list` | Show all enabled and disabled plugins, plus any saved aliases |
+| `/opm enable <name>` | Move a plugin from the disabled list back into the config |
+| `/opm disable <name>` | Remove a plugin from the config and save it to the disabled list |
+| `/opm alias <shorthand> <name>` | Create (or update) a shorthand alias for a plugin name |
+| `/opm alias remove <shorthand>` | Remove a saved alias |
+| `/opm help` | Show usage information |
 
 ### Fuzzy names
 
@@ -63,11 +63,11 @@ Exact matches take priority over substring matches.
 Aliases are persistent shortcuts stored in `~/.config/opencode/plugins-aliases.json`.
 
 ```
-/plugin alias omo oh-my-opencode
-/plugin alias vg opencode-vibeguard
+/opm alias omo oh-my-opencode
+/opm alias vg opencode-vibeguard
 
-/plugin disable omo   → disables oh-my-opencode
-/plugin enable vg     → enables opencode-vibeguard
+/opm disable omo   → disables oh-my-opencode
+/opm enable vg     → enables opencode-vibeguard
 ```
 
 ## How it works
@@ -83,11 +83,11 @@ Aliases are persistent shortcuts stored in `~/.config/opencode/plugins-aliases.j
 ### Disable / enable cycle
 
 ```
-/plugin disable vibeguard
+/opm disable vibeguard
   → removes "opencode-vibeguard" from opencode.json plugin array
   → appends "opencode-vibeguard" to plugins-disabled.json
 
-/plugin enable vibeguard
+/opm enable vibeguard
   → removes "opencode-vibeguard" from plugins-disabled.json
   → appends "opencode-vibeguard" back to opencode.json plugin array
 ```
@@ -96,18 +96,18 @@ Changes take effect after restarting OpenCode.
 
 ### Hook implementation
 
-The plugin registers itself using the `config` hook (no `.md` file needed) and intercepts commands via `command.execute.before`. It throws after sending its response to stop the hook chain — preventing downstream plugins from also processing the `/plugin` command.
+The plugin registers itself using the `config` hook (no `.md` file needed) and intercepts commands via `command.execute.before`. It throws after sending its response to stop the hook chain — preventing downstream plugins from also processing the `/opm` command.
 
 ```typescript
 const OpmPlugin: Plugin = async ({ client }) => ({
   config: async (input) => {
-    input.command["plugin"] = { ... };
+    input.command["opm"] = { ... };
   },
   "command.execute.before": async (input) => {
-    if (input.command !== "plugin") return;
+    if (input.command !== "opm") return;
     // ... handle command ...
     await client.session.prompt({ path: { id: input.sessionID }, body: { noReply: true, ... } });
-    throw new Error("Command handled by opm");
+    throw new Error("Command handled by opencode-plugin-manager");
   },
 });
 ```
@@ -132,6 +132,6 @@ bun test
 All command logic is implemented as pure functions (no file I/O) and covered by unit tests.
 
 ```
- 34 pass
+ 51 pass
   0 fail
 ```

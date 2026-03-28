@@ -234,12 +234,12 @@ export function computeAlias(
 export function help(): string {
   return [
     "Usage:",
-    "  /plugin list                        — show all enabled / disabled plugins + aliases",
-    "  /plugin enable <name>               — enable a disabled plugin",
-    "  /plugin disable <name>              — disable an enabled plugin",
-    "  /plugin alias <shorthand> <name>    — create (or update) an alias",
-    "  /plugin alias remove <shorthand>    — remove an alias",
-    "  /plugin help                        — show this message",
+    "  /opm list                        — show all enabled / disabled plugins + aliases",
+    "  /opm enable <name>               — enable a disabled plugin",
+    "  /opm disable <name>              — disable an enabled plugin",
+    "  /opm alias <shorthand> <name>    — create (or update) an alias",
+    "  /opm alias remove <shorthand>    — remove an alias",
+    "  /opm help                        — show this message",
     "",
     "Names are fuzzy: 'vibeguard' matches 'opencode-vibeguard'.",
     "Aliases can be used anywhere a plugin name is accepted.",
@@ -289,14 +289,14 @@ const OpmPlugin: Plugin = async ({ client }) => {
   return {
     config: async (input) => {
       if (!input.command) input.command = {};
-      input.command["plugin"] = {
+      input.command["opm"] = {
         description: "Manage plugins — list | enable | disable | alias | help",
-        template: "plugin $ARGUMENTS",
+        template: "opm $ARGUMENTS",
       };
     },
 
     "command.execute.before": async (input) => {
-      if (input.command !== "plugin") return;
+      if (input.command !== "opm") return;
 
       const args = (input.arguments ?? "").trim().split(/\s+/).filter(Boolean);
       const action = args[0]?.toLowerCase();
@@ -310,12 +310,12 @@ const OpmPlugin: Plugin = async ({ client }) => {
         case "disable":
           result = args[1]
             ? actionDisable(args.slice(1).join(" "))
-            : "Error: /plugin disable requires a plugin name.";
+            : "Error: /opm disable requires a plugin name.";
           break;
         case "enable":
           result = args[1]
             ? actionEnable(args.slice(1).join(" "))
-            : "Error: /plugin enable requires a plugin name.";
+            : "Error: /opm enable requires a plugin name.";
           break;
         case "alias":
           result = actionAlias(args.slice(1));
@@ -336,7 +336,7 @@ const OpmPlugin: Plugin = async ({ client }) => {
       });
 
       // Stop the hook chain — prevents oh-my-opencode or LLM from also handling this
-      throw new Error("Command handled by opm");
+      throw new Error("Command handled by opencode-plugin-manager");
     },
   };
 };

@@ -1,5 +1,5 @@
 {
-  "name": "@json9512/opm",
+  "name": "opencode-plugin-manager",
   "version": "1.0.0",
   "description": "Manage opencode plugins at runtime with /plugin enable|disable|list|alias|help",
   "type": "module",
