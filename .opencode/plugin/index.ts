@@ -53,15 +53,43 @@ export function resolveAlias(name: string, aliases: Record<string, string>): str
 }
 
 /**
- * Fuzzy-find a plugin name in a list.
- * Priority: exact → name-without-version / name@latest → substring.
+ * Fuzzy-find all plugins matching needle in a list.
+ * Priority tiers: exact → name-without-version / name@latest → substring.
+ * Returns all matches at the highest tier that has any match.
  */
-export function findPlugin(needle: string, haystack: string[]): string | undefined {
-  return (
-    haystack.find(p => p === needle) ??
-    haystack.find(p => p.split("@")[0] === needle || p === needle + "@latest") ??
-    haystack.find(p => p.includes(needle))
-  );
+export function findPluginAll(needle: string, haystack: string[]): string[] {
+  const exact = haystack.filter(p => p === needle);
+  if (exact.length) return exact;
+  const versioned = haystack.filter(p => p.split("@")[0] === needle || p === needle + "@latest");
+  if (versioned.length) return versioned;
+  return haystack.filter(p => p.includes(needle));
+}
+
+/**
+ * Fuzzy-find a single plugin. Returns undefined if none match, or throws an
+ * ambiguity error string if multiple plugins match the same needle.
+ */
+export function findPlugin(needle: string, haystack: string[]): string | { ambiguous: string[] } | undefined {
+  const matches = findPluginAll(needle, haystack);
+  if (matches.length === 0) return undefined;
+  if (matches.length > 1) return { ambiguous: matches };
+  return matches[0];
+}
+
+/**
+ * Try literal name first, then fall back to alias resolution.
+ * This prevents an alias from shadowing a real plugin that shares its name.
+ */
+function findWithAlias(
+  name: string,
+  haystack: string[],
+  aliases: Record<string, string>,
+): string | { ambiguous: string[] } | undefined {
+  const direct = findPlugin(name, haystack);
+  if (direct !== undefined) return direct;
+  const resolved = resolveAlias(name, aliases);
+  if (resolved === name) return undefined;
+  return findPlugin(resolved, haystack);
 }
 
 // ── Pure command implementations (exported for unit tests) ────────────────────
@@ -82,7 +110,15 @@ export function computeList(
   const entries = Object.entries(aliases);
   lines.push("", "Aliases:");
   if (entries.length === 0) lines.push("  (none)");
-  else for (const [alias, target] of entries) lines.push(`  ${alias}  →  ${target}`);
+  else {
+    for (const [alias, target] of entries) {
+      const exists =
+        findPlugin(target, enabled) !== undefined ||
+        findPlugin(target, disabled) !== undefined;
+      const warning = exists ? "" : "  ⚠ target not found";
+      lines.push(`  ${alias}  →  ${target}${warning}`);
+    }
+  }
 
   lines.push("", "Changes take effect after restarting opencode.");
   return lines.join("\n");
@@ -100,16 +136,22 @@ export function computeDisable(
   disabled: string[],
   aliases: Record<string, string>,
 ): DisableResult {
-  const resolved = resolveAlias(name, aliases);
-  const match = findPlugin(resolved, enabled);
-  if (!match) {
+  const result = findWithAlias(name, enabled, aliases);
+  if (result === undefined) {
+    const resolved = resolveAlias(name, aliases);
+    const aliasNote = resolved !== name ? ` (alias → '${resolved}')` : "";
     const hint = enabled.length ? `\nEnabled: ${enabled.join(", ")}` : "";
-    return { message: `Plugin '${name}' not found in enabled list.${hint}` };
+    return { message: `Plugin '${name}'${aliasNote} not found in enabled list.${hint}` };
+  }
+  if (typeof result === "object") {
+    return {
+      message: `Ambiguous: '${name}' matches multiple plugins:\n${result.ambiguous.map(m => `  ${m}`).join("\n")}\nPlease use a more specific name.`,
+    };
   }
   return {
-    message: `Disabled '${match}'. Restart opencode to apply.`,
-    newEnabled: enabled.filter(p => p !== match),
-    newDisabled: disabled.includes(match) ? disabled : [...disabled, match],
+    message: `Disabled '${result}'. Restart opencode to apply.`,
+    newEnabled: enabled.filter(p => p !== result),
+    newDisabled: disabled.includes(result) ? disabled : [...disabled, result],
   };
 }
 
@@ -125,17 +167,35 @@ export function computeEnable(
   disabled: string[],
   aliases: Record<string, string>,
 ): EnableResult {
-  const resolved = resolveAlias(name, aliases);
-  if (findPlugin(resolved, enabled)) return { message: `'${name}' is already enabled.` };
-  const match = findPlugin(resolved, disabled);
-  if (!match) {
+  const inEnabled = findWithAlias(name, enabled, aliases);
+  if (inEnabled !== undefined && typeof inEnabled === "string") {
+    // Plugin is already enabled — clean up any stale entry in the disabled list
+    const stale = findPlugin(inEnabled, disabled);
+    if (stale && typeof stale === "string") {
+      return {
+        message: `'${name}' is already enabled. Cleaned up stale disabled entry '${stale}'.`,
+        newDisabled: disabled.filter(p => p !== stale),
+      };
+    }
+    return { message: `'${name}' is already enabled.` };
+  }
+
+  const result = findWithAlias(name, disabled, aliases);
+  if (result === undefined) {
+    const resolved = resolveAlias(name, aliases);
+    const aliasNote = resolved !== name ? ` (alias → '${resolved}')` : "";
     const hint = disabled.length ? `\nDisabled: ${disabled.join(", ")}` : "";
-    return { message: `Plugin '${name}' not found in disabled list.${hint}` };
+    return { message: `Plugin '${name}'${aliasNote} not found in disabled list.${hint}` };
+  }
+  if (typeof result === "object") {
+    return {
+      message: `Ambiguous: '${name}' matches multiple plugins:\n${result.ambiguous.map(m => `  ${m}`).join("\n")}\nPlease use a more specific name.`,
+    };
   }
   return {
-    message: `Enabled '${match}'. Restart opencode to apply.`,
-    newEnabled: [...enabled, match],
-    newDisabled: disabled.filter(p => p !== match),
+    message: `Enabled '${result}'. Restart opencode to apply.`,
+    newEnabled: [...enabled, result],
+    newDisabled: disabled.filter(p => p !== result),
   };
 }
 

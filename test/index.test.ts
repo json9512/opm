@@ -1,6 +1,7 @@
 import { describe, it, expect } from "bun:test";
 import {
   findPlugin,
+  findPluginAll,
   resolveAlias,
   computeList,
   computeDisable,
@@ -8,6 +9,34 @@ import {
   computeAlias,
   help,
 } from "../.opencode/plugin/index";
+
+// ── findPluginAll ─────────────────────────────────────────────────────────────
+
+describe("findPluginAll", () => {
+  it("returns all exact matches (normally just one)", () => {
+    const list = ["opencode-mem", "opencode-memory", "oh-my-opencode"];
+    expect(findPluginAll("opencode-mem", list)).toEqual(["opencode-mem"]);
+  });
+
+  it("returns all versioned matches", () => {
+    const list = ["opencode-mem@1.0.0", "opencode-mem@2.0.0"];
+    expect(findPluginAll("opencode-mem", list)).toEqual(["opencode-mem@1.0.0", "opencode-mem@2.0.0"]);
+  });
+
+  it("returns all substring matches when no exact/versioned match exists", () => {
+    const list = ["opencode-mem", "opencode-memory"];
+    expect(findPluginAll("mem", list)).toEqual(["opencode-mem", "opencode-memory"]);
+  });
+
+  it("exact tier wins over substring tier", () => {
+    const list = ["mem", "opencode-mem"];
+    expect(findPluginAll("mem", list)).toEqual(["mem"]);
+  });
+
+  it("returns empty array for no match", () => {
+    expect(findPluginAll("nonexistent", ["opencode-mem"])).toEqual([]);
+  });
+});
 
 // ── findPlugin ────────────────────────────────────────────────────────────────
 
@@ -42,6 +71,12 @@ describe("findPlugin", () => {
 
   it("returns undefined for empty list", () => {
     expect(findPlugin("anything", [])).toBeUndefined();
+  });
+
+  it("returns ambiguous object when multiple plugins match", () => {
+    const haystack = ["opencode-mem", "opencode-memory"];
+    const result = findPlugin("mem", haystack);
+    expect(result).toMatchObject({ ambiguous: ["opencode-mem", "opencode-memory"] });
   });
 });
 
@@ -92,6 +127,22 @@ describe("computeList", () => {
     const result = computeList([], [], {});
     expect(result).toContain("Aliases:\n  (none)");
   });
+
+  // Edge case: dangling alias (target not in enabled or disabled)
+  it("warns about aliases whose target no longer exists", () => {
+    const result = computeList([], [], { vg: "opencode-vibeguard" });
+    expect(result).toContain("⚠ target not found");
+  });
+
+  it("does not warn when alias target is in enabled list", () => {
+    const result = computeList(["opencode-vibeguard"], [], { vg: "opencode-vibeguard" });
+    expect(result).not.toContain("⚠");
+  });
+
+  it("does not warn when alias target is in disabled list", () => {
+    const result = computeList([], ["opencode-vibeguard"], { vg: "opencode-vibeguard" });
+    expect(result).not.toContain("⚠");
+  });
 });
 
 // ── computeDisable ────────────────────────────────────────────────────────────
@@ -128,6 +179,31 @@ describe("computeDisable", () => {
     const r = computeDisable("opencode-vibeguard", enabled, ["opencode-vibeguard"], {});
     expect(r.newDisabled).toEqual(["opencode-vibeguard"]);
   });
+
+  // Edge case: alias shadowing a real plugin name
+  it("targets the real plugin when its name matches an alias shorthand", () => {
+    // alias "foo" → "bar", but "foo" is also a real enabled plugin
+    const r = computeDisable("foo", ["foo", "bar"], [], { foo: "bar" });
+    // "foo" (the real plugin) should be found directly — alias is not used
+    expect(r.newEnabled).toEqual(["bar"]);
+    expect(r.newDisabled).toEqual(["foo"]);
+  });
+
+  // Edge case: ambiguous fuzzy match
+  it("returns ambiguity error when multiple plugins match", () => {
+    const r = computeDisable("mem", ["opencode-mem", "opencode-memory"], [], {});
+    expect(r.message).toContain("Ambiguous");
+    expect(r.message).toContain("opencode-mem");
+    expect(r.message).toContain("opencode-memory");
+    expect(r.newEnabled).toBeUndefined();
+  });
+
+  // Edge case: dangling alias — error message mentions what the alias resolved to
+  it("includes alias resolution in error message for not-found", () => {
+    const r = computeDisable("vg", [], [], { vg: "opencode-vibeguard" });
+    expect(r.message).toContain("vg");
+    expect(r.message).toContain("opencode-vibeguard");
+  });
 });
 
 // ── computeEnable ─────────────────────────────────────────────────────────────
@@ -163,6 +239,49 @@ describe("computeEnable", () => {
     const r = computeEnable("nonexistent", enabled, disabled, {});
     expect(r.message).toContain("not found");
     expect(r.newEnabled).toBeUndefined();
+  });
+
+  // Edge case: alias shadowing a real plugin name
+  it("targets the real plugin when its name matches an alias shorthand", () => {
+    // alias "foo" → "bar", but "foo" is also in disabled
+    const r = computeEnable("foo", [], ["foo", "bar"], { foo: "bar" });
+    // "foo" (the real plugin) should be found directly
+    expect(r.newEnabled).toEqual(["foo"]);
+    expect(r.newDisabled).toEqual(["bar"]);
+  });
+
+  // Edge case: ambiguous fuzzy match in disabled list
+  it("returns ambiguity error when multiple disabled plugins match", () => {
+    const r = computeEnable("mem", [], ["opencode-mem", "opencode-memory"], {});
+    expect(r.message).toContain("Ambiguous");
+    expect(r.newEnabled).toBeUndefined();
+  });
+
+  // Edge case: stale disabled entry (plugin manually re-added to enabled)
+  it("cleans up stale disabled entry when plugin is already enabled", () => {
+    // opencode-vibeguard is in BOTH enabled and disabled (stale state)
+    const r = computeEnable(
+      "opencode-vibeguard",
+      ["opencode-vibeguard"],         // already in enabled
+      ["opencode-vibeguard", "other"], // also stale in disabled
+      {},
+    );
+    expect(r.message).toContain("already enabled");
+    expect(r.message).toContain("stale");
+    expect(r.newDisabled).toEqual(["other"]); // stale entry removed
+    expect(r.newEnabled).toBeUndefined();     // enabled list unchanged
+  });
+
+  it("does not set newDisabled when already enabled and no stale entry", () => {
+    const r = computeEnable("opencode-mem", enabled, disabled, {});
+    expect(r.newDisabled).toBeUndefined();
+  });
+
+  // Edge case: dangling alias — error message mentions what the alias resolved to
+  it("includes alias resolution in error message for not-found", () => {
+    const r = computeEnable("vg", [], [], { vg: "opencode-vibeguard" });
+    expect(r.message).toContain("vg");
+    expect(r.message).toContain("opencode-vibeguard");
   });
 });
 
