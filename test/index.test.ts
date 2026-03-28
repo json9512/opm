@@ -6,7 +6,7 @@ import {
   computeEnable,
   computeAlias,
   help,
-} from "../.opencode/plugin/index";
+} from "../.opencode/plugin/lib/logic";
 
 // ── resolveAlias ──────────────────────────────────────────────────────────────
 
