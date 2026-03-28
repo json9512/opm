@@ -40,7 +40,7 @@ OpenCode will automatically install the plugin on next run.
 
 | Command | Description |
 |---------|-------------|
-| `/opm list` | Show all enabled and disabled plugins, plus any saved aliases |
+| `/opm` or `/opm list` | Show all enabled and disabled plugins, plus any saved aliases |
 | `/opm enable <name>` | Move a plugin from the disabled list back into the config |
 | `/opm disable <name>` | Remove a plugin from the config and save it to the disabled list |
 | `/opm alias <shorthand> <name>` | Create (or update) a shorthand alias for a plugin name |
@@ -54,6 +54,8 @@ Plugin names must match exactly as they appear in your `opencode.json`. Run `/op
 ### Aliases
 
 Aliases are persistent shortcuts stored in `~/.config/opencode/plugins-aliases.json`.
+
+The alias target must be a plugin already known to opm (i.e. currently enabled or disabled). If the target is not found in either list, the command returns an error.
 
 ```
 /opm alias omo oh-my-opencode
@@ -133,6 +135,6 @@ bun test
 All command logic is implemented as pure functions (no file I/O) and covered by unit tests.
 
 ```
- 51 pass
+ 39 pass
   0 fail
 ```
