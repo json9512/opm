@@ -62,12 +62,13 @@ export function computeDisable(
   enabled: string[],
   disabled: string[],
   aliases: Record<string, string>,
+  listCmd: string = "/opm list",
 ): DisableResult {
   const match = findExact(name, enabled, aliases);
   if (!match) {
     const resolved = resolveAlias(name, aliases);
     const aliasNote = resolved !== name ? ` (alias → '${resolved}')` : "";
-    return { message: `Plugin '${name}'${aliasNote} not found in enabled list.\nRun /opm list to see exact plugin names.` };
+    return { message: `Plugin '${name}'${aliasNote} not found in enabled list.\nRun ${listCmd} to see exact plugin names.` };
   }
   return {
     message: `Disabled '${match}'. Restart opencode to apply.`,
@@ -87,6 +88,7 @@ export function computeEnable(
   enabled: string[],
   disabled: string[],
   aliases: Record<string, string>,
+  listCmd: string = "/opm list",
 ): EnableResult {
   const inEnabled = findExact(name, enabled, aliases);
   if (inEnabled) {
@@ -104,7 +106,7 @@ export function computeEnable(
   if (!match) {
     const resolved = resolveAlias(name, aliases);
     const aliasNote = resolved !== name ? ` (alias → '${resolved}')` : "";
-    return { message: `Plugin '${name}'${aliasNote} not found in disabled list.\nRun /opm list to see exact plugin names.` };
+    return { message: `Plugin '${name}'${aliasNote} not found in disabled list.\nRun ${listCmd} to see exact plugin names.` };
   }
   return {
     message: `Enabled '${match}'. Restart opencode to apply.`,
@@ -162,6 +164,11 @@ export function help(): string {
     "  /opm alias <shorthand> <name>    — create (or update) an alias",
     "  /opm alias remove <shorthand>    — remove an alias",
     "  /opm help                        — show this message",
+    "",
+    "Project scope (add -p / --project to target this project's opencode.json):",
+    "  /opm list -p                     — show this project's plugins",
+    "  /opm enable <name> -p            — enable a plugin for this project",
+    "  /opm disable <name> -p           — disable a plugin for this project",
     "",
     "Names must be exact. Use /opm list to see exact plugin names.",
     "Aliases can be used anywhere a plugin name is accepted.",

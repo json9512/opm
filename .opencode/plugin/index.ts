@@ -1,5 +1,5 @@
 import type { Plugin } from "@opencode-ai/plugin";
-import { readFileSync, writeFileSync, existsSync } from "fs";
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
 import { homedir } from "os";
 import { join } from "path";
 import {
@@ -7,12 +7,17 @@ import {
   computeDisable,
   computeEnable,
   computeAlias,
+  findExact,
   help,
 } from "./lib/logic.ts";
 
 const CONFIG_PATH = join(homedir(), ".config", "opencode", "opencode.json");
 const DISABLED_PATH = join(homedir(), ".config", "opencode", "plugins-disabled.json");
 const ALIASES_PATH = join(homedir(), ".config", "opencode", "plugins-aliases.json");
+
+const PROJECT_LIST_CMD = "/opm list -p";
+const projectConfigPath = (root: string) => join(root, "opencode.json");
+const projectDisabledPath = (root: string) => join(root, ".opencode", "opm-disabled.json");
 
 // ── I/O helpers ───────────────────────────────────────────────────────────────
 
@@ -88,9 +93,85 @@ function actionAlias(args: string[]): string {
   return result.message;
 }
 
+// ── Project-scoped I/O ──────────────────────────────────────────────────────────
+
+function readProjectConfig(root: string): any {
+  const path = projectConfigPath(root);
+  if (!existsSync(path)) return {};
+  return JSON.parse(readFileSync(path, "utf-8"));
+}
+
+function writeProjectConfig(root: string, config: any): void {
+  const path = projectConfigPath(root);
+  if (!existsSync(path) && !config.$schema) {
+    config = { $schema: "https://opencode.ai/config.json", ...config };
+  }
+  writeFileSync(path, JSON.stringify(config, null, 2) + "\n", "utf-8");
+}
+
+function readProjectDisabled(root: string): string[] {
+  const path = projectDisabledPath(root);
+  if (!existsSync(path)) return [];
+  try {
+    return JSON.parse(readFileSync(path, "utf-8"));
+  } catch {
+    return [];
+  }
+}
+
+function writeProjectDisabled(root: string, list: string[]): void {
+  const dir = join(root, ".opencode");
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+  writeFileSync(projectDisabledPath(root), JSON.stringify(list, null, 2) + "\n", "utf-8");
+}
+
+// ── Project-scoped actions ──────────────────────────────────────────────────────
+
+function actionListProject(root: string): string {
+  const config = readProjectConfig(root);
+  const body = computeList(config.plugin ?? [], readProjectDisabled(root), readAliases());
+  return `Project scope — ${projectConfigPath(root)}\n\n${body}`;
+}
+
+function actionDisableProject(root: string, name: string): string {
+  const config = readProjectConfig(root);
+  const aliases = readAliases();
+  const result = computeDisable(name, config.plugin ?? [], readProjectDisabled(root), aliases, PROJECT_LIST_CMD);
+  if (result.newEnabled !== undefined) {
+    config.plugin = result.newEnabled;
+    writeProjectConfig(root, config);
+    writeProjectDisabled(root, result.newDisabled!);
+    return result.message;
+  }
+
+  let globalPlugins: string[] = [];
+  try {
+    globalPlugins = readConfig().plugin ?? [];
+  } catch {
+    globalPlugins = [];
+  }
+  const global = findExact(name, globalPlugins, aliases);
+  if (global) {
+    return `${result.message}\n\n'${global}' is enabled globally. OpenCode can't disable a globally-declared plugin for a single project — add it to this project's opencode.json to manage it here.`;
+  }
+  return result.message;
+}
+
+function actionEnableProject(root: string, name: string): string {
+  const config = readProjectConfig(root);
+  const result = computeEnable(name, config.plugin ?? [], readProjectDisabled(root), readAliases(), PROJECT_LIST_CMD);
+  if (result.newEnabled !== undefined) {
+    config.plugin = result.newEnabled;
+    writeProjectConfig(root, config);
+    writeProjectDisabled(root, result.newDisabled!);
+  }
+  return result.message;
+}
+
 // ── Plugin ────────────────────────────────────────────────────────────────────
 
-const OpmPlugin: Plugin = async ({ client }) => {
+const OpmPlugin: Plugin = async ({ client, worktree, directory }) => {
+  const root = worktree || directory;
   return {
     config: async (input) => {
       if (!input.command) input.command = {};
@@ -102,23 +183,29 @@ const OpmPlugin: Plugin = async ({ client }) => {
     "command.execute.before": async (input) => {
       if (input.command !== "opm") return;
 
-      const args = (input.arguments ?? "").trim().split(/\s+/).filter(Boolean);
+      const raw = (input.arguments ?? "").trim().split(/\s+/).filter(Boolean);
+      const project = raw.some((a) => a === "-p" || a === "--project");
+      const args = raw.filter((a) => a !== "-p" && a !== "--project");
       const action = args[0]?.toLowerCase();
 
       let result: string;
       switch (action) {
         case "list":
         case undefined:
-          result = actionList();
+          result = project ? actionListProject(root) : actionList();
           break;
         case "disable":
           result = args[1]
-            ? actionDisable(args.slice(1).join(" "))
+            ? project
+              ? actionDisableProject(root, args.slice(1).join(" "))
+              : actionDisable(args.slice(1).join(" "))
             : "Error: /opm disable requires a plugin name.";
           break;
         case "enable":
           result = args[1]
-            ? actionEnable(args.slice(1).join(" "))
+            ? project
+              ? actionEnableProject(root, args.slice(1).join(" "))
+              : actionEnable(args.slice(1).join(" "))
             : "Error: /opm enable requires a plugin name.";
           break;
         case "alias":

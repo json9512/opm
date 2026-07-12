@@ -17,6 +17,7 @@ This plugin replaces all of that with a single slash command. It also persists d
 - **List plugins**: See all enabled and disabled plugins at a glance
 - **Disable**: Remove a plugin from the active config without losing its name
 - **Enable**: Restore a disabled plugin back into the config
+- **Project scope**: Manage a plugin per project with `-p` — it operates on the project's own `opencode.json`, which OpenCode applies automatically when you work in that project
 - **Aliases**: Create short nicknames for long plugin names (e.g. `omo` → `oh-my-opencode`)
 - **Exact matching**: plugin names must match exactly as they appear in your config — use `/opm list` to check
 - **No LLM involvement**: Commands are intercepted before the model is called; results appear instantly
@@ -46,6 +47,14 @@ OpenCode will automatically install the plugin on next run. Because plugins are 
 | `/opm alias <shorthand> <name>` | Create (or update) a shorthand alias for a plugin name |
 | `/opm alias remove <shorthand>` | Remove a saved alias |
 | `/opm help` | Show usage information |
+
+Add `-p` (or `--project`) to `list`, `enable`, or `disable` to operate on the **current project** instead of the global config:
+
+| Command | Description |
+|---------|-------------|
+| `/opm list -p` | Show the current project's enabled / disabled plugins |
+| `/opm enable <name> -p` | Restore a project-disabled plugin into the project's `opencode.json` |
+| `/opm disable <name> -p` | Remove a plugin from the project's `opencode.json` and record it in the project disabled list |
 
 ### Plugin names
 
@@ -90,12 +99,35 @@ The alias target must be a plugin already known to opm (i.e. currently enabled o
 
 Changes take effect after restarting OpenCode.
 
+### Project-level plugins
+
+OpenCode merges a project's own `opencode.json` (the nearest one from your working directory up to the worktree root) on top of the global config. `-p` points opm at that project file instead of the global one:
+
+```
+/opm disable vibeguard -p
+  → removes "opencode-vibeguard" from <project>/opencode.json plugin array
+  → appends "opencode-vibeguard" to <project>/.opencode/opm-disabled.json
+
+/opm enable vibeguard -p
+  → removes "opencode-vibeguard" from <project>/.opencode/opm-disabled.json
+  → appends "opencode-vibeguard" back to <project>/opencode.json plugin array
+```
+
+Because the disabled plugin is simply absent from the project's config, OpenCode applies the change automatically the next time you start it in that project — no global edits, and the disabled list lives inside the project so it can be committed and shared with the team.
+
+| File | Purpose |
+|------|---------|
+| `<project>/opencode.json` | Plugins enabled at project scope (`plugin` array) |
+| `<project>/.opencode/opm-disabled.json` | Plugins disabled for this project (created on first project disable) |
+
+> **Limitation:** OpenCode merges plugin arrays *additively* — a project config can only add plugins, never subtract one that is declared globally. So `-p` manages plugins that are enabled at project scope; it cannot turn off a globally-declared plugin for a single project. To manage a plugin per project, declare it in that project's `opencode.json` rather than the global config. If you try to `disable -p` a global plugin, opm tells you so.
+
 ### Hook implementation
 
 The plugin registers the `/opm` command via the `config` hook and intercepts it via `command.execute.before`. It calls `client.session.prompt({ noReply: true })` to display the result directly in chat, then throws to stop the hook chain — preventing downstream plugins from re-processing the command.
 
 ```typescript
-const OpmPlugin: Plugin = async ({ client }) => ({
+const OpmPlugin: Plugin = async ({ client, worktree, directory }) => ({
   config: async (input) => {
     if (!input.command) input.command = {};
     input.command["opm"] = {

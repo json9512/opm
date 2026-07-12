@@ -115,6 +115,17 @@ describe("computeDisable", () => {
     expect(r.newEnabled).toEqual(["bar"]);
     expect(r.newDisabled).toEqual(["foo"]);
   });
+
+  it("uses a custom list command in the not-found hint (project scope)", () => {
+    const r = computeDisable("nonexistent", enabled, disabled, {}, "/opm list -p");
+    expect(r.message).toContain("/opm list -p");
+    expect(r.message).not.toContain("Run /opm list to");
+  });
+
+  it("defaults the not-found hint to the global list command", () => {
+    const r = computeDisable("nonexistent", enabled, disabled, {});
+    expect(r.message).toContain("Run /opm list to");
+  });
 });
 
 // ── computeEnable ─────────────────────────────────────────────────────────────
@@ -182,6 +193,12 @@ describe("computeEnable", () => {
   it("does not set newDisabled when already enabled with no stale entry", () => {
     const r = computeEnable("opencode-mem", enabled, disabled, {});
     expect(r.newDisabled).toBeUndefined();
+  });
+
+  it("uses a custom list command in the not-found hint (project scope)", () => {
+    const r = computeEnable("nonexistent", enabled, disabled, {}, "/opm list -p");
+    expect(r.message).toContain("/opm list -p");
+    expect(r.message).not.toContain("Run /opm list to");
   });
 });
 
@@ -271,5 +288,11 @@ describe("help", () => {
 
   it("mentions aliases can be used as names", () => {
     expect(help()).toContain("Aliases can be used");
+  });
+
+  it("documents the project scope flag", () => {
+    const h = help();
+    expect(h).toContain("-p");
+    expect(h).toContain("/opm disable <name> -p");
   });
 });
